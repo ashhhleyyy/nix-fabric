@@ -12,6 +12,23 @@ EXPERIMENTAL_LAUNCHER_MANIFEST = 'https://maven.fabricmc.net/net/minecraft/exper
 
 LOADER_VERSION = '0.16.7'
 
+def fetch_launcher_manifest(manifest: str):
+    resp = requests.get(manifest)
+    resp.raise_for_status()
+    return resp.json()
+
+def merge_launcher_manifests():
+    launcher_manifest = fetch_launcher_manifest(LAUNCHER_MANIFEST)
+    experimental_launcher_manifest = fetch_launcher_manifest(EXPERIMENTAL_LAUNCHER_MANIFEST)
+    full_launcher_manifest = {}
+    for version in launcher_manifest['versions']:
+        full_launcher_manifest[version['id']] = version
+    for version in experimental_launcher_manifest['versions']:
+        full_launcher_manifest[version['id']] = version
+    return full_launcher_manifest
+
+LAUNCHER_MANIFEST = merge_launcher_manifests()
+
 def fetch_game_versions():
     print('Fetching game versions...')
     resp = requests.get(V2_VERSIONS_GAME)
@@ -35,21 +52,6 @@ def format_maven_url(base: str, name: str, extension: str='jar') -> str:
     filename = urllib.parse.quote(f'{name}-{version}.{extension}')
     version = urllib.parse.quote(version)
     return base + group + '/' + name + '/' + version + '/' + filename
-
-def fetch_launcher_manifest(manifest: str):
-    resp = requests.get(manifest)
-    resp.raise_for_status()
-    return resp.json()
-
-def merge_launcher_manifests():
-    launcher_manifest = fetch_launcher_manifest(LAUNCHER_MANIFEST)
-    experimental_launcher_manifest = fetch_launcher_manifest(EXPERIMENTAL_LAUNCHER_MANIFEST)
-    full_launcher_manifest = {}
-    for version in launcher_manifest['versions']:
-        full_launcher_manifest[version['id']] = version
-    for version in experimental_launcher_manifest['versions']:
-        full_launcher_manifest[version['id']] = version
-    return full_launcher_manifest
 
 def create_jar_name(maven_url: str) -> str:
     return re.sub(r'[^a-zA-Z0-9-_.]', '__', maven_url)
@@ -81,37 +83,38 @@ def library_info(baseUrl: str, mavenName: str, sha256: str):
             'sha256': make_nix_hash('sha256', resp.text),
         }
 
+@functools.cache
+def get_vanilla_details(version: str):
+    print(f'  Fetching JAR information for {version}...')
+    resp = requests.get(LAUNCHER_MANIFEST[version]['url'])
+    resp.raise_for_status()
+    resp = resp.json()
+    server = resp['downloads']['server']
+    client = resp['downloads']['client']
+    javaVersion = '8'
+    if 'javaVersion' in resp and 'majorVersion' in resp['javaVersion']:
+        javaVersion = resp['javaVersion']['majorVersion']
+    return {
+        'serverJar': server,
+        'clientJar': client,
+        'javaVersion': javaVersion,
+    }
+
 def get_libraries(libraries):
     return list(map(lambda lib: library_info(lib['url'], lib['name'], lib['sha256'] if 'sha256' in lib else None), libraries))
 
 def generate_version_info(game_version: str, loader_version: str):
     profile = fetch_server_profile(game_version, loader_version)
+    vanilla  = get_vanilla_details(game_version)
     return {
         'id': profile['id'],
         'mainClass': profile['mainClass'],
         'libraries': get_libraries(profile['libraries']),
+        'vanilla': vanilla,
     }
 
 def main():
     versions = fetch_game_versions()
-
-    launcher_manifest = merge_launcher_manifests()
-
-    @functools.cache
-    def get_server_jar(version: str):
-        print(f'  Fetching server JAR information for {version}...')
-        resp = requests.get(launcher_manifest[version]['url'])
-        resp.raise_for_status()
-        resp = resp.json()
-        server = resp['downloads']['server']
-        javaVersion = '8'
-        if 'javaVersion' in resp and 'majorVersion' in resp['javaVersion']:
-            javaVersion = resp['javaVersion']['majorVersion']
-        return {
-            'url': server['url'],
-            'sha1': server['sha1'],
-            'javaVersion': javaVersion,
-        }
 
     output_versions = {}
     latestStable = None
@@ -122,9 +125,7 @@ def main():
         elif not  latestUnstable and not version['stable']:
             latestUnstable = version['version']
         print(f'Fetching data for version {version['version']}...')
-        server_jar = get_server_jar(version['version'])
         version_data = generate_version_info(version['version'], LOADER_VERSION)
-        version_data['vanillaJar'] = server_jar
         output_versions[version['version']] = version_data
     with open('versions.json', 'w') as f:
         json.dump({

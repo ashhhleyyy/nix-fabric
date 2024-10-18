@@ -16,7 +16,7 @@
 , libraries
 
 , extraJvmArgs ? []
-, mods ? []
+, fabricMods ? []
 }:
 
 let
@@ -34,7 +34,7 @@ let
     };
   };
   classPath = lib.concatStringsSep ":" (map fetchLib libraries);
-  modList = lib.concatStringsSep ":" mods;
+  modList = lib.concatStringsSep ":" fabricMods;
 in
 
 writeShellApplication {

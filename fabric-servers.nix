@@ -16,13 +16,13 @@ let
       value = callPackage ./fabric-server.nix {
         inherit (value) mainClass libraries;
         inherit (versions) fabricLoaderVersion;
-        
+
         minecraftVersion = version;
 
-        jdk_headless = getJavaVersion value.vanillaJar.javaVersion;
+        jdk_headless = getJavaVersion value.vanilla.javaVersion;
 
-        serverJarUrl = value.vanillaJar.url;
-        serverJarSha1 = value.vanillaJar.sha1;
+        serverJarUrl = value.vanilla.serverJar.url;
+        serverJarSha1 = value.vanilla.serverJar.sha1;
       };
     })
     versions.versions;

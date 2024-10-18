@@ -21,7 +21,10 @@
         ];
       in
     {
-      packages.fabric-servers = pkgs.callPackage ./fabric-servers.nix {};
+      packages = {
+        minecraft-jars = pkgs.callPackage ./minecraft-jars.nix {};
+        fabric-servers = pkgs.callPackage ./fabric-servers.nix {};
+      };
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
           (python3.withPackages scriptDeps)
