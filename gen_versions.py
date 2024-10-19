@@ -98,6 +98,10 @@ def get_vanilla_details(version: str):
         'serverJar': server,
         'clientJar': client,
         'javaVersion': javaVersion,
+        'manifest': {
+            'url': LAUNCHER_MANIFEST[version]['url'],
+            'sha1': LAUNCHER_MANIFEST[version]['sha1'],
+        }
     }
 
 def get_libraries(libraries):
