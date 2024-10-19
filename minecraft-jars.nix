@@ -25,6 +25,7 @@ lib.mapAttrs'
         sha1 = value.vanilla.serverJar.sha1;
       };
       manifest = fetchurl value.vanilla.manifest;
+      manifest-info = value.vanilla.manifest;
       javaVersion = getJavaVersion value.vanilla.javaVersion;
     };
   })
