@@ -27,6 +27,10 @@ lib.mapAttrs'
       manifest = fetchurl value.vanilla.manifest;
       manifest-info = value.vanilla.manifest;
       javaVersion = getJavaVersion value.vanilla.javaVersion;
+      intermediary = fetchurl {
+        url = value.intermediary.url;
+        hash = value.intermediary.sha256;
+      };
     };
   })
   versions.versions

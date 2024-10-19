@@ -9,6 +9,8 @@ V2_VERSIONS_GAME = 'https://meta.fabricmc.net/v2/versions/game'
 V2_VERSIONS_LOADER_SERVER_JSON = 'https://meta.fabricmc.net/v2/versions/loader/{game_version}/{loader_version}/server/json'
 LAUNCHER_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manifest_v2.json'
 EXPERIMENTAL_LAUNCHER_MANIFEST = 'https://maven.fabricmc.net/net/minecraft/experimental_versions.json'
+FABRIC_MAVEN = 'https://maven.fabricmc.net/'
+INTERMEDIARY_NAME = 'net.fabricmc:intermediary:{game_version}:v2'
 
 LOADER_VERSION = '0.16.7'
 
@@ -45,11 +47,14 @@ def format_maven_url(base: str, name: str, extension: str='jar') -> str:
     parts = name.split(':')
     if len(parts) == 3:
         group, name, version = parts
+        filename = urllib.parse.quote(f'{name}-{version}.{extension}')
+    elif len(parts) == 4:
+        group, name, version, classifier = parts
+        filename = urllib.parse.quote(f'{name}-{version}-{classifier}.{extension}')
     else:
         raise RuntimeError(f'invalid maven object name: `{name}`')
     group = urllib.parse.quote(group).replace('.', '/')
     name = urllib.parse.quote(name)
-    filename = urllib.parse.quote(f'{name}-{version}.{extension}')
     version = urllib.parse.quote(version)
     return base + group + '/' + name + '/' + version + '/' + filename
 
@@ -107,6 +112,9 @@ def get_vanilla_details(version: str):
 def get_libraries(libraries):
     return list(map(lambda lib: library_info(lib['url'], lib['name'], lib['sha256'] if 'sha256' in lib else None), libraries))
 
+def get_intermediary(game_version: str):
+    return library_info(FABRIC_MAVEN, INTERMEDIARY_NAME.format(game_version=game_version), None)
+
 def generate_version_info(game_version: str, loader_version: str):
     profile = fetch_server_profile(game_version, loader_version)
     vanilla  = get_vanilla_details(game_version)
@@ -115,6 +123,7 @@ def generate_version_info(game_version: str, loader_version: str):
         'mainClass': profile['mainClass'],
         'libraries': get_libraries(profile['libraries']),
         'vanilla': vanilla,
+        'intermediary': get_intermediary(game_version),
     }
 
 def main():
